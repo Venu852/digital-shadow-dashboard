@@ -17,7 +17,10 @@ import { SIGNAL_DEFS, statusFor } from "./signals.js";
 const CAUSES = Object.fromEntries(SIGNAL_DEFS.map((s) => [s.key, s.cause]));
 const RESPONSES = Object.fromEntries(SIGNAL_DEFS.map((s) => [s.key, s.action]));
 
-const CONTEXT_TAGS = ["None", "Exam week", "Deadline crunch", "Product launch", "Holiday or break"];
+const CONTEXT_TAGS = ["None", "Exam week", "Travel", "Holiday or break", "Busy period", "New routine"];
+
+// Drift is the rounded mean of the six signal levels
+const meanDrift = (row) => Math.round(SIGNAL_DEFS.reduce((sum, s) => sum + row[s.key], 0) / SIGNAL_DEFS.length);
 
 const wave = (base, amp, i, noise = 4) =>
   Math.max(2, Math.min(96, Math.round(base + amp * Math.sin(i * 0.7) + (Math.random() - 0.5) * noise)));
@@ -36,13 +39,11 @@ function buildHistory(pattern, n = 10) {
       session: wave(level, 8, i + 1),
       checks: wave(level, 5, i + 2),
       screen: wave(level, 7, i + 3),
-      steadiness: wave(level, 6, i + 4),
+      night: wave(level, 6, i + 4),
+      timing: wave(level, 5, i + 5),
     });
   }
-  return rows.map((r) => ({
-    ...r,
-    drift: Math.round((r.switching + r.session + r.checks + r.screen + r.steadiness) / 5),
-  }));
+  return rows.map((r) => ({ ...r, drift: meanDrift(r) }));
 }
 
 const TEAMS = [
@@ -54,7 +55,7 @@ const USERS = [
   { id: "aditi", name: "Aditi R.", context: "Undergraduate learner", pattern: "stable", team: "nova" },
   { id: "rohan", name: "Rohan K.", context: "Junior analyst, 3rd week", pattern: "drifting", team: "nova" },
   { id: "zara", name: "Zara N.", context: "Support engineer", pattern: "mild", team: "nova" },
-  { id: "meera", name: "Meera S.", context: "Support engineer, post-intervention", pattern: "recovering", team: "atlas" },
+  { id: "meera", name: "Meera S.", context: "Support engineer", pattern: "recovering", team: "atlas" },
   { id: "kabir", name: "Kabir T.", context: "Product designer", pattern: "stable", team: "atlas" },
   { id: "ishaan", name: "Ishaan V.", context: "QA engineer", pattern: "stable", team: "atlas" },
 ];
@@ -67,11 +68,11 @@ function dominantSignal(latest) {
   return SIGNAL_DEFS.find((s) => s.key === key);
 }
 
-const TABS_MANAGER = [
+const TABS_COORDINATOR = [
   { id: "overview", label: "Overview" },
   { id: "explain", label: "Explainability" },
   { id: "context", label: "Context" },
-  { id: "team", label: "Team view" },
+  { id: "team", label: "Group view" },
   { id: "privacy", label: "Privacy & ethics" },
   { id: "architecture", label: "Architecture" },
 ];
@@ -93,17 +94,17 @@ export default function DemoDashboard({ onExit }) {
     USERS.forEach((u) => { m[u.id] = buildHistory(u.pattern); });
     return m;
   });
-  const [sliders, setSliders] = useState({ switching: 20, session: 20, checks: 20, screen: 20, steadiness: 20 });
+  const [sliders, setSliders] = useState({ switching: 20, session: 20, checks: 20, screen: 20, night: 20, timing: 20 });
   const [settingsMap, setSettingsMap] = useState(() => {
     const m = {};
     USERS.forEach((u) => {
-      m[u.id] = { tracking: true, sensitivity: "medium", context: "None", humanReview: true, visibleToUser: true, retentionDays: 30 };
+      m[u.id] = { tracking: true, sensitivity: "medium", context: "None", visibleToUser: true, retentionDays: 30 };
     });
     return m;
   });
   const [approvals, setApprovals] = useState({});
 
-  const tabs = role === "individual" ? TABS_INDIVIDUAL : TABS_MANAGER;
+  const tabs = role === "individual" ? TABS_INDIVIDUAL : TABS_COORDINATOR;
   const user = USERS.find((u) => u.id === userId);
   const settings = settingsMap[userId];
   const history = historyMap[userId];
@@ -124,7 +125,7 @@ export default function DemoDashboard({ onExit }) {
     : 0;
   const horizon = slope > 8 ? "2 to 3 weeks if the trend continues"
     : slope > 2 ? "4 to 6 weeks if the trend continues"
-    : "No defined horizon — trend is stable or improving";
+    : "No defined trend: stable or improving";
 
   const factorBreakdown = useMemo(() => {
     if (!rawLatest) return [];
@@ -160,7 +161,7 @@ export default function DemoDashboard({ onExit }) {
         return sum + (last ? last.drift : 0);
       }, 0) / members.length
     );
-    return { team: t.name, drift: avg, size: members.length };
+    return { group: t.name, drift: avg, size: members.length };
   });
 
   function updateSetting(key, value) {
@@ -170,7 +171,7 @@ export default function DemoDashboard({ onExit }) {
     setHistoryMap((prev) => {
       const prevHistory = prev[userId];
       const row = { sessionNo: prevHistory.length + 1, ...(overrideValues || sliders) };
-      row.drift = Math.round((row.switching + row.session + row.checks + row.screen + row.steadiness) / 5);
+      row.drift = meanDrift(row);
       return { ...prev, [userId]: [...prevHistory, row] };
     });
   }
@@ -211,7 +212,7 @@ export default function DemoDashboard({ onExit }) {
           <div className="flex items-center gap-2.5">
             <div className="w-2.5 h-2.5 rounded-full bg-indigo-400"></div>
             <span className="font-semibold tracking-tight text-lg">Digital Shadow</span>
-            <span className="text-slate-500 text-sm ml-1 hidden sm:inline">/ behavioral forecasting console</span>
+            <span className="text-slate-500 text-sm ml-1 hidden sm:inline">/ phone-use rhythm</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
@@ -219,13 +220,13 @@ export default function DemoDashboard({ onExit }) {
                 onClick={() => { setRole("manager"); setTab("overview"); }}
                 className={`px-3 py-1.5 rounded-md ${role === "manager" ? "bg-indigo-500 text-slate-950 font-medium" : "text-slate-400"}`}
               >
-                Manager view
+                Coordinator
               </button>
               <button
                 onClick={() => { setRole("individual"); setTab("overview"); }}
                 className={`px-3 py-1.5 rounded-md ${role === "individual" ? "bg-indigo-500 text-slate-950 font-medium" : "text-slate-400"}`}
               >
-                Individual view
+                Individual
               </button>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500 border-l border-slate-800 pl-3">
@@ -294,12 +295,12 @@ export default function DemoDashboard({ onExit }) {
                     <div className="text-xs mt-1" style={{ color: status.color }}>{status.label}</div>
                   </Card>
                   <Card>
-                    <div className="flex items-center gap-2 text-slate-500 text-xs mb-3"><Zap size={14} /> Prediction confidence</div>
+                    <div className="flex items-center gap-2 text-slate-500 text-xs mb-3"><Zap size={14} /> Confidence</div>
                     <div className="text-3xl font-semibold">{confidence}%</div>
                     <div className="text-xs text-slate-500 mt-1">based on {history.length} sessions observed</div>
                   </Card>
                   <Card>
-                    <div className="flex items-center gap-2 text-slate-500 text-xs mb-3"><Clock size={14} /> Disengagement horizon</div>
+                    <div className="flex items-center gap-2 text-slate-500 text-xs mb-3"><Clock size={14} /> If the trend continues</div>
                     <div className="text-sm font-medium leading-snug">{horizon}</div>
                   </Card>
                   <Card>
@@ -324,7 +325,7 @@ export default function DemoDashboard({ onExit }) {
                     </ResponsiveContainer>
                   </Card>
                   <Card>
-                    <SectionHead title="Latest session vs baseline" sub="Five tracked interaction signals" />
+                    <SectionHead title="Latest session vs baseline" sub="Six tracked phone signals" />
                     <ResponsiveContainer width="100%" height={220}>
                       <RadarChart data={radarData} outerRadius={75}>
                         <PolarGrid stroke="#1E293B" />
@@ -379,8 +380,8 @@ export default function DemoDashboard({ onExit }) {
               </Card>
 
               <Card>
-                <SectionHead title="Adaptive response timeline" sub={settings.humanReview ? "Suggested actions await manager approval" : "Actions applied automatically"} />
-                {events.length === 0 && <div className="text-sm text-slate-500 py-6 text-center">No intervention triggered yet.</div>}
+                <SectionHead title="Suggestions" sub="Changes to schedules and interruptions for the group. Each one waits for a decision." />
+                {events.length === 0 && <div className="text-sm text-slate-500 py-6 text-center">No suggestions yet.</div>}
                 <div className="space-y-3">
                   {events.map((e) => {
                     const decision = approvals[e.id];
@@ -388,20 +389,16 @@ export default function DemoDashboard({ onExit }) {
                       <div key={e.id} className="border-l-2 border-amber-500 pl-3 py-1">
                         <div className="text-xs text-slate-500 font-mono mb-0.5">Session {e.session} · drift {e.drift}</div>
                         <div className="text-sm text-slate-200">{e.action}</div>
-                        <div className="text-xs text-slate-500 mt-0.5 mb-1.5">Triggered by {e.signal.toLowerCase()}</div>
-                        {settings.humanReview ? (
-                          decision ? (
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${decision === "approved" ? "bg-indigo-950 text-indigo-300" : "bg-slate-800 text-slate-400"}`}>
-                              {decision === "approved" ? "Approved" : "Dismissed"}
-                            </span>
-                          ) : (
-                            <div className="flex gap-2">
-                              <button onClick={() => decideEvent(e.id, "approved")} className="flex items-center gap-1 text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-md"><Check size={12} /> Approve</button>
-                              <button onClick={() => decideEvent(e.id, "dismissed")} className="flex items-center gap-1 text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-md"><X size={12} /> Dismiss</button>
-                            </div>
-                          )
+                        <div className="text-xs text-slate-500 mt-0.5 mb-1.5">Because of {e.signal.toLowerCase()}</div>
+                        {decision ? (
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${decision === "adopted" ? "bg-indigo-950 text-indigo-300" : "bg-slate-800 text-slate-400"}`}>
+                            {decision === "adopted" ? "Adopted" : "Not now"}
+                          </span>
                         ) : (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300">Applied automatically</span>
+                          <div className="flex gap-2">
+                            <button onClick={() => decideEvent(e.id, "adopted")} className="flex items-center gap-1 text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-md"><Check size={12} /> Adopt</button>
+                            <button onClick={() => decideEvent(e.id, "not_now")} className="flex items-center gap-1 text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-md"><X size={12} /> Not now</button>
+                          </div>
                         )}
                       </div>
                     );
@@ -431,14 +428,14 @@ export default function DemoDashboard({ onExit }) {
                 ))}
                 <div className="border-t border-slate-800 pt-4 mt-4 text-xs text-slate-500 flex items-start gap-2">
                   <Info size={14} className="mt-0.5 shrink-0" />
-                  This layer reports that behavior is changing direction — it never states a diagnosis, a mental-health condition, or a performance judgment.
+                  This reading says the phone-use rhythm is shifting. It never states a diagnosis, a mental-health condition, or a judgement about anyone.
                 </div>
               </div>
             )}
           </Card>
         )}
 
-        {/* ---------------- CONTEXT (manager only) ---------------- */}
+        {/* ---------------- CONTEXT (coordinator only) ---------------- */}
         {tab === "context" && role === "manager" && (
           <Card>
             <SectionHead title="Context awareness" sub="Tag known circumstances so the baseline isn't misread as drift" />
@@ -462,19 +459,23 @@ export default function DemoDashboard({ onExit }) {
                 displayed as <span className="font-mono">{displayedScore}</span> after context adjustment, to avoid a false alarm.
               </div>
             ) : (
-              <div className="text-sm text-slate-500">No context tag active — readings reflect raw behavioral drift.</div>
+              <div className="text-sm text-slate-500">No context tag active — readings show raw drift.</div>
             )}
+            <div className="mt-4 text-xs text-slate-500 flex items-start gap-2">
+              <Info size={14} className="mt-0.5 shrink-0" />
+              While a tag is active, displayed drift is the raw drift minus 15 (never below 0).
+            </div>
           </Card>
         )}
 
-        {/* ---------------- TEAM (manager only) ---------------- */}
+        {/* ---------------- GROUP (coordinator only) ---------------- */}
         {tab === "team" && role === "manager" && (
           <Card>
-            <SectionHead title="Team-level aggregate" sub="Group trends only — no individual is singled out in this view" />
+            <SectionHead title="Group-level aggregate" sub="Group trends only — no individual is singled out in this view" />
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={teamData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
-                <XAxis dataKey="team" stroke="#475569" fontSize={12} tickLine={false} />
+                <XAxis dataKey="group" stroke="#475569" fontSize={12} tickLine={false} />
                 <YAxis stroke="#475569" fontSize={11} tickLine={false} domain={[0, 100]} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="drift" fill="#818CF8" radius={[6, 6, 0, 0]} />
@@ -482,7 +483,7 @@ export default function DemoDashboard({ onExit }) {
             </ResponsiveContainer>
             <div className="mt-4 text-xs text-slate-500 flex items-start gap-2">
               <Info size={14} className="mt-0.5 shrink-0" />
-              Aggregate scores average every member's latest drift reading. No name, role, or individual score is exposed here — this view exists for workflow and workload decisions, not performance review.
+              Aggregate scores average every member's latest drift reading. No name, role, or individual score is exposed here — this view exists for schedule and interruption decisions, not performance review.
             </div>
           </Card>
         )}
@@ -493,9 +494,6 @@ export default function DemoDashboard({ onExit }) {
             <Card>
               <SectionHead title={role === "individual" ? "My controls" : `Controls for ${user.name}`} />
               <Toggle checked={settings.tracking} onChange={(v) => updateSetting("tracking", v)} label="Behavioral tracking enabled" />
-              {role === "manager" && (
-                <Toggle checked={settings.humanReview} onChange={(v) => updateSetting("humanReview", v)} label="Require human approval before actions apply" />
-              )}
               <Toggle checked={settings.visibleToUser} onChange={(v) => updateSetting("visibleToUser", v)} label="Show trend visibility to this user" />
               <div className="mt-4">
                 <div className="text-xs text-slate-500 mb-2 flex items-center gap-1.5"><SlidersHorizontal size={12} /> Sensitivity</div>
@@ -541,7 +539,7 @@ export default function DemoDashboard({ onExit }) {
           </div>
         )}
 
-        {/* ---------------- ARCHITECTURE (manager only) ---------------- */}
+        {/* ---------------- ARCHITECTURE (coordinator only) ---------------- */}
         {tab === "architecture" && role === "manager" && <ArchitectureCard />}
 
         <Footer />

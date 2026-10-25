@@ -1,37 +1,55 @@
-/* The five phone signals, status colours and status/band helpers.
-   Labels and cause texts returned by the server win; these are the fallbacks. */
+/* The six phone signals, status colours and status/band helpers.
+   Labels and cause texts returned by the server win; these are the fallbacks.
+   `cause` and `action` are the coordinator's view; `self` and `personal` are the person's. */
 
 export const SIGNAL_DEFS = [
   {
     key: "switching", label: "App switching", short: "Switching",
-    cause: "Switching between apps is more frequent than baseline.",
-    action: "Reduce open workload and consolidate tasks into one view.",
+    cause: "App switching is above the group's baseline.",
+    action: "Reduce parallel tasks so people can stay with one thing longer.",
+    self: "You are switching between apps more often than your usual.",
+    personal: "Try checking messages at set times instead of switching all day.",
   },
   {
     key: "session", label: "Session length", short: "Session",
     cause: "Time in a single app is shorter than baseline.",
-    action: "Adjust pacing and shorten the next module.",
+    action: "Protect longer uninterrupted blocks; cut interruptions and hand-offs.",
+    self: "Your time in a single app is shorter than usual.",
+    personal: "Try one longer, uninterrupted block today, even 25 minutes.",
   },
   {
     key: "checks", label: "Phone checks", short: "Checks",
     cause: "Phone pick-ups are more frequent than baseline.",
-    action: "Insert a short break prompt and lighten the task queue.",
+    action: "Batch non-urgent updates and pings into set times.",
+    self: "You are picking up the phone more often than your baseline.",
+    personal: "Try leaving the phone out of reach for one hour.",
   },
   {
     key: "screen", label: "Screen time", short: "Screen",
-    cause: "Screen-on time is above baseline for this time of day.",
-    action: "Plan shorter focus blocks with a short break between them.",
+    cause: "Screen-on time is above baseline.",
+    action: "Avoid long back-to-back screen sessions; encourage short breaks.",
+    self: "Your screen-on time is above your usual.",
+    personal: "Try a short screen-free break between long stretches.",
   },
   {
-    key: "steadiness", label: "Motion steadiness", short: "Steadiness",
-    cause: "Phone handling is less steady than baseline.",
-    action: "Lower task difficulty and surface guided hints.",
+    key: "night", label: "Late-night use", short: "Late night",
+    cause: "Late-night phone use is above baseline.",
+    action: "Avoid late-evening requests and deadlines; keep after-hours messages to a minimum.",
+    self: "You are using the phone more between midnight and 5am than usual.",
+    personal: "Try putting the phone away 30 minutes earlier tonight.",
+  },
+  {
+    key: "timing", label: "Routine timing", short: "Timing",
+    cause: "Daily start and end times are shifting from baseline.",
+    action: "Keep meeting and deadline times steady; avoid sudden schedule changes.",
+    self: "Your phone day is starting or ending at different times than usual.",
+    personal: "Try keeping your first and last phone use of the day closer to your usual times.",
   },
 ];
 
 export const SIGNALS_BY_KEY = Object.fromEntries(SIGNAL_DEFS.map((s) => [s.key, s]));
 
-// Radar baseline: the level a signal sits at when behaviour matches the person's own normal
+// Radar baseline: the level a signal sits at when phone use matches the person's own normal
 export const LEVEL_BASELINE = 12;
 export const DRIFT_REFERENCE = 45;
 

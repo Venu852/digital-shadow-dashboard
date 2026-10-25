@@ -20,6 +20,8 @@ export async function logout() {
 
 const USERNAME_RE = /^[a-z0-9_.-]{3,32}$/;
 const MIN_PASSWORD = 8;
+// [API role value, label]; the coordinator role is stored as "manager"
+const ROLE_OPTIONS = [["individual", "Individual"], ["manager", "Coordinator"]];
 
 /* ---------------- small UI bits (kept local so this file has no cross-import) ---------------- */
 
@@ -167,16 +169,16 @@ export default function LoginPage({ onAuthenticated, onDemo }) {
                 <div>
                   <div className="text-xs text-slate-500 mb-1.5">Account type</div>
                   <div className="flex gap-2">
-                    {["individual", "manager"].map((r) => (
+                    {ROLE_OPTIONS.map(([r, label]) => (
                       <button
                         key={r}
                         type="button"
                         onClick={() => setAccountRole(r)}
-                        className={`flex-1 px-3 py-2 rounded-lg border text-sm capitalize ${
+                        className={`flex-1 px-3 py-2 rounded-lg border text-sm ${
                           accountRole === r ? "border-indigo-500 bg-indigo-950" : "border-slate-800 bg-slate-950 hover:border-slate-700"
                         }`}
                       >
-                        {r}
+                        {label}
                       </button>
                     ))}
                   </div>

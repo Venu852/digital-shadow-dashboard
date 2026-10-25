@@ -34,7 +34,7 @@ export function DriftTrendCard({ title = "Drift trend", sub, data, dataKey, name
   );
 }
 
-export function LevelsRadarCard({ title, sub = "Five tracked phone signals", levels }) {
+export function LevelsRadarCard({ title, sub = "Six tracked phone signals", levels }) {
   return (
     <Card>
       <SectionHead title={title} sub={sub} />

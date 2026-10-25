@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Activity, Shield, Zap, Clock, Trash2, Smartphone, Eye, Users, LogOut as Leave } from "lucide-react";
+import { Activity, Shield, Zap, Clock, Trash2, Smartphone, Eye, Users, Lightbulb, LogOut as Leave } from "lucide-react";
 import { useApi, put, post, del } from "./api.js";
 import { Card, SectionHead, Empty, ErrorNote, Note, TopBar, TabBar, Footer, EthicalGuarantees } from "./ui.jsx";
 import { StatTile, DriftTrendCard, LevelsRadarCard, FactorList } from "./charts.jsx";
@@ -15,17 +15,17 @@ export const SHARING_OPTIONS = [
   {
     level: "nothing",
     title: "Nothing",
-    text: "Your phone keeps its readings to itself. The server stores nothing new and no manager sees anything about you.",
+    text: "Your phone keeps its readings to itself. The server stores nothing new and no coordinator sees anything about you.",
   },
   {
     level: "team_totals",
-    title: "Team totals",
-    text: "Your daily summary counts toward your teams' averages, shown only when 3 or more people share. No one sees your own numbers.",
+    title: "Group totals",
+    text: "Your daily summary counts toward your groups' averages, shown only when 3 or more people share. No one sees your own numbers.",
   },
   {
     level: "my_trend",
     title: "My drift trend",
-    text: "Managers of teams you joined can also see your own drift trend and why it reads that way. Every view is logged for you below.",
+    text: "Coordinators of groups you joined can also see your own drift trend and why it reads that way. Every view is logged for you below.",
   },
 ];
 
@@ -74,11 +74,11 @@ function MyTrends() {
             <div className="text-xs text-slate-500 mt-1">raw {latest.drift_raw}, context: {data.context.join(", ")}</div>
           )}
         </StatTile>
-        <StatTile icon={Zap} label="Prediction confidence">
+        <StatTile icon={Zap} label="Confidence">
           <div className="text-3xl font-semibold">{latest.confidence}%</div>
           <div className="text-xs text-slate-500 mt-1">based on {data.days_observed} days observed</div>
         </StatTile>
-        <StatTile icon={Clock} label="Disengagement horizon">
+        <StatTile icon={Clock} label="If the trend continues">
           <div className="text-sm font-medium leading-snug">{data.horizon}</div>
         </StatTile>
         <StatTile icon={Shield} label="Baseline">
@@ -90,7 +90,33 @@ function MyTrends() {
         <DriftTrendCard sub="Deviation from your personal baseline, by day" data={data.days} dataKey="drift" />
         <LevelsRadarCard title="Latest day vs baseline" levels={latest.levels} />
       </div>
+      <SuggestionsCard />
     </>
+  );
+}
+
+function SuggestionsCard() {
+  const { data, error, loading } = useApi("/api/me/suggestions");
+  if (loading) return null;
+  return (
+    <Card className="mb-6">
+      <SectionHead title="Suggestions for you" sub="Only you see these" />
+      {error ? <ErrorNote message={error} /> : data.length === 0 ? (
+        <div className="text-sm text-slate-500">Nothing to suggest: your rhythm is close to your usual.</div>
+      ) : (
+        <div className="space-y-3">
+          {data.map((s) => (
+            <div key={s.signal} className="flex items-start gap-3">
+              <Lightbulb size={15} className="text-indigo-400 mt-0.5 shrink-0" />
+              <div>
+                <div className="text-sm text-slate-200">{s.text}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{s.label}: {s.because}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -207,7 +233,7 @@ function TeamsCard() {
 
   return (
     <Card>
-      <SectionHead title="My teams" sub="Join with the invite code your manager gave you. A manager cannot add you." />
+      <SectionHead title="My groups" sub="Join with the invite code your coordinator gave you. A coordinator cannot add you." />
       <form onSubmit={join} className="flex gap-2 mb-4">
         <input
           value={code}
@@ -218,7 +244,7 @@ function TeamsCard() {
         <button disabled={busy} className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-60 text-slate-950 font-medium text-sm rounded-lg px-4">Join</button>
       </form>
       {loading ? null : error ? <ErrorNote message={error} /> : data.length === 0 ? (
-        <div className="text-sm text-slate-500">You haven't joined a team yet.</div>
+        <div className="text-sm text-slate-500">You haven't joined a group yet.</div>
       ) : (
         <div className="space-y-2">
           {data.map((t) => (
@@ -285,7 +311,7 @@ function AccessLogCard() {
   const { data, error, loading } = useApi("/api/me/access-log");
   return (
     <Card>
-      <SectionHead title="Who viewed me" sub="Every time a manager opens your trend or explanation, it is written here." />
+      <SectionHead title="Who viewed me" sub="Every time a coordinator opens your trend or explanation, it is written here." />
       {loading ? null : error ? <ErrorNote message={error} /> : data.length === 0 ? (
         <div className="text-sm text-slate-500">No one has viewed your data.</div>
       ) : (

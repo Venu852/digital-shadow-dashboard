@@ -64,7 +64,7 @@ export function TopBar({ username, roleLabel, onLogout }) {
       <div className="flex items-center gap-2.5">
         <div className="w-2.5 h-2.5 rounded-full bg-indigo-400"></div>
         <span className="font-semibold tracking-tight text-lg">Digital Shadow</span>
-        <span className="text-slate-500 text-sm ml-1 hidden sm:inline">/ behavioral forecasting console</span>
+        <span className="text-slate-500 text-sm ml-1 hidden sm:inline">/ phone-use rhythm</span>
       </div>
       <div className="flex items-center gap-3">
         <span className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-400">{roleLabel}</span>
@@ -120,20 +120,20 @@ export function EthicalGuarantees() {
         <li className="flex gap-2"><Shield size={15} className="text-indigo-400 mt-0.5 shrink-0" /> No mental-health claims or diagnostic language, ever.</li>
         <li className="flex gap-2"><Shield size={15} className="text-indigo-400 mt-0.5 shrink-0" /> No individual punishment mechanisms — insights inform systems, not grading or firing.</li>
         <li className="flex gap-2"><Shield size={15} className="text-indigo-400 mt-0.5 shrink-0" /> No biometric, voice, facial, or content data is ever collected. Phones send only a daily summary — no app names, no raw data.</li>
-        <li className="flex gap-2"><Shield size={15} className="text-indigo-400 mt-0.5 shrink-0" /> Sharing can be turned off at any time, with no penalty — you leave every manager view at once.</li>
-        <li className="flex gap-2"><Shield size={15} className="text-indigo-400 mt-0.5 shrink-0" /> Every time a manager views a person, it is logged and that person can read the log.</li>
+        <li className="flex gap-2"><Shield size={15} className="text-indigo-400 mt-0.5 shrink-0" /> Sharing can be turned off at any time, with no penalty — you leave every coordinator view at once.</li>
+        <li className="flex gap-2"><Shield size={15} className="text-indigo-400 mt-0.5 shrink-0" /> Every time a coordinator views a person, it is logged and that person can read the log.</li>
       </ul>
     </Card>
   );
 }
 
 export const LAYERS = [
-  { n: "01", title: "Interaction capture", desc: "Collects scroll speed, pause duration, typing cadence, app-switch frequency and session timing. Never content, voice, face or biometric data." },
-  { n: "02", title: "Behavior abstraction", desc: "Converts raw events into features like scroll entropy and pause-action ratio. Looks at trends across time, not single actions." },
-  { n: "03", title: "Personal baseline engine", desc: "Learns each user's own normal rhythm during a silent calibration window. Compares a person only against their past self." },
-  { n: "04", title: "Drift and deviation analyzer", desc: "Detects directional change, not sudden anomalies. Reports that behavior is shifting, never that a person is burned out." },
-  { n: "05", title: "Future-state prediction engine", desc: "Estimates where behavior is heading, with a probability and a time horizon, before performance visibly drops." },
-  { n: "06", title: "Response and adaptation layer", desc: "Adjusts pacing, difficulty and workload quietly. No alerts, no labels, no 'you are at risk' messages." },
+  { n: "01", title: "Interaction capture", desc: "Collects app switches, session timing, unlocks, screen on/off, late-night use and the timing of the phone day. Never content, voice, face or biometric data." },
+  { n: "02", title: "Behavior abstraction", desc: "Turns raw events into daily measures on the phone. Looks at trends across days, not single actions." },
+  { n: "03", title: "Personal baseline engine", desc: "Learns each person's own normal during a quiet calibration window. Compares a person only against their past self." },
+  { n: "04", title: "Drift and deviation analyzer", desc: "Detects directional change, not sudden anomalies. Reports that rhythm is shifting, never what that means about a person." },
+  { n: "05", title: "Future-state prediction", desc: "Shows where a trend is heading and how confident the estimate is, using simple extrapolation." },
+  { n: "06", title: "Suggestions", desc: "Offers changes to schedules and interruptions for a group, and gentle nudges for a person. Offers, never alerts or labels." },
 ];
 
 export function ArchitectureCard() {
