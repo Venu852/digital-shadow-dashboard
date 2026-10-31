@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Activity, Shield, Zap, Clock, Trash2, Smartphone, Eye, Users, Lightbulb, LogOut as Leave } from "lucide-react";
-import { useApi, put, post, del } from "./api.js";
+import { Activity, Shield, Zap, Clock, Trash2, Smartphone, Eye, Users, Lightbulb, Check, Download, LogOut as Leave } from "lucide-react";
+import { useApi, get, put, del, previewGroup, joinGroup, downloadExport } from "./api.js";
 import { Card, SectionHead, Empty, ErrorNote, Note, TopBar, TabBar, Footer, EthicalGuarantees } from "./ui.jsx";
 import { StatTile, DriftTrendCard, LevelsRadarCard, FactorList } from "./charts.jsx";
 import { withColor } from "./signals.js";
@@ -91,6 +91,7 @@ function MyTrends() {
         <LevelsRadarCard title="Latest day vs baseline" levels={latest.levels} />
       </div>
       <SuggestionsCard />
+      <GroupUpdatesCard />
     </>
   );
 }
@@ -111,6 +112,36 @@ function SuggestionsCard() {
               <div>
                 <div className="text-sm text-slate-200">{s.text}</div>
                 <div className="text-xs text-slate-500 mt-0.5">{s.label}: {s.because}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function GroupUpdatesCard() {
+  const { data, error, loading } = useApi("/api/me/group-updates");
+  if (loading) return null;
+  const groups = data ? data.groups.filter((g) => g.adopted.length > 0) : [];
+  return (
+    <Card className="mb-6">
+      <SectionHead title="Group updates" sub="Suggestions your groups' coordinators adopted in the last 30 days" />
+      {error ? <ErrorNote message={error} /> : groups.length === 0 ? (
+        <div className="text-sm text-slate-500">No adopted suggestions yet</div>
+      ) : (
+        <div className="space-y-4">
+          {groups.map((g) => (
+            <div key={g.team.id}>
+              <div className="text-xs text-slate-500 flex items-center gap-1.5 mb-2"><Users size={12} /> {g.team.name}</div>
+              <div className="space-y-2">
+                {g.adopted.map((a) => (
+                  <div key={a.day} className="border-l-2 border-indigo-500 pl-3">
+                    <div className="text-sm text-slate-200">{a.text}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Because of {a.signal_label.toLowerCase()} · {a.day}</div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -151,6 +182,7 @@ function MyPrivacy({ onAccountDeleted }) {
       </div>
       <div className="space-y-4">
         <AccessLogCard />
+        <ExportCard />
         <DeleteCard onAccountDeleted={onAccountDeleted} />
         <EthicalGuarantees />
       </div>
@@ -206,6 +238,9 @@ function SharingCard() {
 function TeamsCard() {
   const { data, error, loading, reload } = useApi("/api/teams");
   const [code, setCode] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [understood, setUnderstood] = useState(false);
+  const [sharingOff, setSharingOff] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -214,7 +249,6 @@ function TeamsCard() {
     setActionError("");
     try {
       await fn();
-      reload();
     } catch (e) {
       setActionError(e.message);
     } finally {
@@ -222,27 +256,83 @@ function TeamsCard() {
     }
   }
 
-  function join(e) {
+  function clearPreview() {
+    setPreview(null);
+    setUnderstood(false);
+  }
+
+  // Step 1: show the group, its coordinator and the agreement before anything is joined
+  function lookUp(e) {
     e.preventDefault();
-    if (!code.trim()) return;
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    setSharingOff(false);
+    clearPreview();
     run(async () => {
-      await post("/api/teams/join", { invite_code: code.trim() });
+      const res = await previewGroup(trimmed);
+      setPreview({ ...res, code: trimmed });
+    });
+  }
+
+  // Step 2: join only after the person ticked the agreement
+  function join() {
+    if (!preview || !understood) return;
+    run(async () => {
+      await joinGroup(preview.code);
+      clearPreview();
       setCode("");
+      reload();
+      const sharing = await get("/api/me/sharing");
+      setSharingOff(sharing.level === "nothing");
+    });
+  }
+
+  function leave(id) {
+    run(async () => {
+      await del(`/api/teams/${id}/membership`);
+      reload();
     });
   }
 
   return (
     <Card>
       <SectionHead title="My groups" sub="Join with the invite code your coordinator gave you. A coordinator cannot add you." />
-      <form onSubmit={join} className="flex gap-2 mb-4">
+      <form onSubmit={lookUp} className="flex gap-2 mb-4">
         <input
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={(e) => { setCode(e.target.value); clearPreview(); }}
           placeholder="Invite code"
           className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm font-mono uppercase placeholder:normal-case placeholder:font-sans placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
         />
-        <button disabled={busy} className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-60 text-slate-950 font-medium text-sm rounded-lg px-4">Join</button>
+        <button disabled={busy} className="bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-sm rounded-lg px-4">Look up</button>
       </form>
+      {preview && (
+        <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 mb-4">
+          <div className="text-sm font-medium">{preview.team.name}</div>
+          <div className="text-xs text-slate-500 mt-0.5 mb-3">Coordinator: {preview.coordinator.username}</div>
+          <ul className="space-y-2 text-sm text-slate-300 mb-4">
+            {preview.agreement.map((line) => (
+              <li key={line} className="flex gap-2"><Shield size={14} className="text-indigo-400 mt-0.5 shrink-0" /> {line}</li>
+            ))}
+          </ul>
+          <label className="flex items-center gap-2 text-sm text-slate-300 mb-3 cursor-pointer">
+            <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} className="accent-indigo-500" />
+            I understand what the coordinator can see
+          </label>
+          <button
+            onClick={join}
+            disabled={busy || !understood}
+            className="flex items-center gap-1 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 text-slate-950 font-medium text-sm rounded-lg px-4 py-2"
+          >
+            <Check size={14} /> Join
+          </button>
+        </div>
+      )}
+      {sharingOff && (
+        <div className="text-sm text-slate-400 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 mb-4">
+          Your sharing level is Nothing. Choose a level in My privacy to take part.
+        </div>
+      )}
       {loading ? null : error ? <ErrorNote message={error} /> : data.length === 0 ? (
         <div className="text-sm text-slate-500">You haven't joined a group yet.</div>
       ) : (
@@ -252,7 +342,7 @@ function TeamsCard() {
               <span className="text-sm flex items-center gap-2"><Users size={14} className="text-slate-500" /> {t.name}</span>
               <button
                 disabled={busy}
-                onClick={() => run(() => del(`/api/teams/${t.id}/membership`))}
+                onClick={() => leave(t.id)}
                 className="flex items-center gap-1 text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-md"
               >
                 <Leave size={12} /> Leave
@@ -329,6 +419,37 @@ function AccessLogCard() {
           ))}
         </div>
       )}
+    </Card>
+  );
+}
+
+function ExportCard() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function exportData() {
+    setBusy(true);
+    setError("");
+    try {
+      await downloadExport();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <SectionHead title="Export" sub="A JSON file with everything stored about you: account, sharing history, devices, daily summaries, who viewed you and your groups." />
+      <button
+        onClick={exportData}
+        disabled={busy}
+        className="w-full flex items-center justify-center gap-2 text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-60 rounded-lg py-2.5 transition"
+      >
+        <Download size={14} /> Export my data
+      </button>
+      <ErrorNote message={error} className="mt-3" />
     </Card>
   );
 }

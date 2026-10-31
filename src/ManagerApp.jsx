@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { Activity, Users, Clock, Tag, Check, X, Plus, RefreshCw, EyeOff, Shield, Ban, Zap } from "lucide-react";
-import { useApi, put, post } from "./api.js";
+import { useApi, put, post, impactPath, weekdayPatternPath } from "./api.js";
 import {
   Card, SectionHead, Empty, ErrorNote, Note, TopBar, TabBar, Footer,
   EthicalGuarantees, ArchitectureCard, TOOLTIP_STYLE
@@ -234,6 +234,8 @@ function TeamOverview({ teamId, person, onSelectPerson, onChanged }) {
         <ActionsCard teamId={teamId} onChanged={onChanged} />
       </div>
 
+      <div className="mb-6"><WeekdayCard teamId={teamId} /></div>
+
       {person && (
         <PersonTrend
           key={person.account_id}
@@ -277,13 +279,17 @@ function TeamAggregate({ agg }) {
 
 function ActionsCard({ teamId, onChanged }) {
   const { data, error, loading, reload } = useApi(`/api/teams/${teamId}/actions`);
+  const impact = useApi(impactPath(teamId));
   const [actionError, setActionError] = useState("");
+  const impactByDay = {};
+  if (impact.data && !impact.data.hidden) impact.data.items.forEach((i) => { impactByDay[i.day] = i; });
 
   async function decide(day, decision) {
     setActionError("");
     try {
       await put(`/api/teams/${teamId}/actions/${day}`, { decision });
       reload();
+      impact.reload();
       onChanged();
     } catch (e) {
       setActionError(e.message);
@@ -319,11 +325,61 @@ function ActionsCard({ teamId, onChanged }) {
                   {a.status === "approved" ? "Adopted" : "Not now"}
                 </span>
               )}
+              {a.status === "approved" && impactByDay[a.day] && <ImpactCheck item={impactByDay[a.day]} />}
             </div>
           ))}
         </div>
       )}
       <ErrorNote message={actionError} className="mt-3" />
+    </Card>
+  );
+}
+
+const shown = (value) => (value === null ? "—" : value);
+
+function ImpactCheck({ item }) {
+  return (
+    <div className="text-xs text-slate-400 mt-2 bg-slate-950 border border-slate-800 rounded-md px-2.5 py-1.5">
+      {item.complete ? (
+        <>
+          7 days before: <span className="font-mono">{shown(item.before.drift)}</span> -&gt; 7 days after:{" "}
+          <span className="font-mono">{shown(item.after.drift)}</span>; {item.signal_label} level{" "}
+          <span className="font-mono">{shown(item.before.signal_level)}</span> -&gt;{" "}
+          <span className="font-mono">{shown(item.after.signal_level)}</span>. {item.note}
+        </>
+      ) : (
+        <>Collecting data: {item.after.days} of 7 days after adoption</>
+      )}
+    </div>
+  );
+}
+
+function WeekdayCard({ teamId }) {
+  const { data, error, loading } = useApi(weekdayPatternPath(teamId, 8));
+  const valued = data && !data.hidden ? data.by_weekday.filter((d) => d.avg !== null) : [];
+  return (
+    <Card>
+      <SectionHead title="Group rhythm by weekday" sub="Average group drift for each weekday over the last 8 weeks" />
+      {loading ? null : error ? <ErrorNote message={error} /> : data.hidden ? (
+        <div className="text-sm text-slate-500 py-6 text-center">{HIDDEN_TEXT}.</div>
+      ) : valued.length < 4 ? (
+        <div className="text-sm text-slate-500 py-6 text-center">Needs about three weeks of data</div>
+      ) : (
+        <>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={data.by_weekday} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
+              <XAxis dataKey="label" stroke="#475569" fontSize={12} tickLine={false} />
+              <YAxis stroke="#475569" fontSize={11} tickLine={false} domain={[0, 100]} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Bar dataKey="avg" name="Average drift" fill="#818CF8" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          {data.highest && (
+            <div className="mt-3"><Note>The group's rhythm shifts most on {data.highest}. A weekday needs 3 or more days with data to show a bar.</Note></div>
+          )}
+        </>
+      )}
     </Card>
   );
 }

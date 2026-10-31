@@ -79,3 +79,41 @@ export function useApi(path) {
 
   return { ...state, reload };
 }
+
+/* ---------------- group features ---------------- */
+
+export const previewGroup = (code) => get(`/api/teams/preview?code=${encodeURIComponent(code)}`);
+// The server refuses a join unless the person accepted the group agreement
+export const joinGroup = (code) => post("/api/teams/join", { invite_code: code, accept: true });
+export const getGroupUpdates = () => get("/api/me/group-updates");
+export const impactPath = (teamId) => `/api/teams/${teamId}/impact`;
+export const weekdayPatternPath = (teamId, weeks = 8) => `/api/teams/${teamId}/weekday-pattern?weeks=${weeks}`;
+export const getImpact = (teamId) => get(impactPath(teamId));
+export const getWeekdayPattern = (teamId, weeks) => get(weekdayPatternPath(teamId, weeks));
+
+// Saves the export as a file through a Blob; nothing is kept in the browser afterwards
+export async function downloadExport() {
+  let res;
+  try {
+    res = await fetch("/api/me/export", {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    });
+  } catch {
+    throw new ApiError(0, "Can't reach the server.");
+  }
+  if (!res.ok) {
+    let message = `Request failed (${res.status}).`;
+    try { message = (await res.json()).error || message; } catch { /* keep the generic message */ }
+    if (res.status === 401 && message === "Unauthorized" && unauthorizedHandler) unauthorizedHandler();
+    throw new ApiError(res.status, message);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "digital-shadow-export.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
