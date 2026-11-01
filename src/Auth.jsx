@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Lock, User, UserPlus, LogIn, Eye, EyeOff, AlertCircle, PlayCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Lock, User, UserPlus, LogIn, Eye, EyeOff, AlertCircle, PlayCircle, KeyRound } from "lucide-react";
 import { get, post } from "./api.js";
 
 /* ---------------- session (kept by the server in an HttpOnly cookie) ---------------- */
@@ -45,9 +45,21 @@ export default function LoginPage({ onAuthenticated, onDemo }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [accountRole, setAccountRole] = useState("individual");
+  // The server says whether new accounts need its enrollment code
+  const [enrollRequired, setEnrollRequired] = useState(false);
+  const [enrollCode, setEnrollCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (mode !== "signup") return;
+    let live = true;
+    get("/api/config")
+      .then((config) => { if (live) setEnrollRequired(Boolean(config && config.enroll_required)); })
+      .catch(() => { /* registration itself reports any problem */ });
+    return () => { live = false; };
+  }, [mode]);
 
   function resetFields() {
     setPassword("");
@@ -93,7 +105,9 @@ export default function LoginPage({ onAuthenticated, onDemo }) {
     setBusy(true);
     try {
       // Registering also signs the new account in
-      const account = await post("/api/register", { username: uname, password, role: accountRole });
+      const body = { username: uname, password, role: accountRole };
+      if (enrollRequired) body.enroll_code = enrollCode.trim();
+      const account = await post("/api/register", body);
       onAuthenticated(account);
     } catch (err) {
       setError(err.status === 409 ? "That username is already taken." : err.message);
@@ -166,6 +180,16 @@ export default function LoginPage({ onAuthenticated, onDemo }) {
                   autoComplete="new-password"
                   onChange={(e) => setConfirm(e.target.value)}
                 />
+                {enrollRequired && (
+                  <Field
+                    icon={KeyRound}
+                    type="text"
+                    placeholder="Enrollment code"
+                    value={enrollCode}
+                    autoComplete="off"
+                    onChange={(e) => setEnrollCode(e.target.value)}
+                  />
+                )}
                 <div>
                   <div className="text-xs text-slate-500 mb-1.5">Account type</div>
                   <div className="flex gap-2">
