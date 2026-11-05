@@ -75,3 +75,15 @@ backend. For a real deployment you'd replace `buildHistory()` and the
 `historyMap` state with calls to your actual interaction-logging API and
 database (matching the Data Storage Module in your report — SQLite,
 `interaction_logs.json`, etc.).
+
+## Documentation
+
+The current dashboard talks to the Digital Shadow server through relative `/api` URLs and is
+served by it from `dist`; the notes above about simulated data describe the original
+prototype (`digital-shadow-app.jsx`). The full documentation set lives in the separate
+`digital-shadow-docs` repository (`https://github.com/<your-github-name>/digital-shadow-docs`;
+on the reference machine `F:\digital-shadow-docs`). For this dashboard, start with:
+
+- `02-coordinator-guide.md`: using the dashboard as a coordinator
+- `03-admin-setup-guide.md`: `npm install`, the dev proxy and `npm run build`
+- `06-api-reference.md`: the API the dashboard calls
